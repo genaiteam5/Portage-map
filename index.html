@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>블로동 고분군 — Digital Frottage &amp; Collection</title>
+
+<!-- Tailwind CSS (CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  :root { --header-h: 176px; }
+
+  html, body { height: 100%; }
+  body { font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; }
+
+  /* ---------- SPA pages ---------- */
+  .page       { min-height: calc(100dvh - var(--header-h)); }
+  .page-fixed { height:     calc(100dvh - var(--header-h)); overflow: hidden; }
+
+  /* ---------- Navigation ---------- */
+  .nav-link { transition: opacity .15s; }
+  .nav-link:hover { opacity: .55; }
+  .nav-link.active { font-weight: 600; }
+
+  /* ---------- Map ---------- */
+  .map-bg {
+    background-color: #77894f;
+    background-image:
+      radial-gradient(rgba(255,255,255,.06) 1px, transparent 1.6px),
+      radial-gradient(rgba(30,45,18,.18) 1.2px, transparent 2px);
+    background-size: 26px 26px, 43px 43px;
+    background-position: 0 0, 13px 17px;
+  }
+  .marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 2.3rem; height: 2.3rem;
+    border-radius: 9999px;
+    background: #55663c;
+    color: #f4f0da;
+    border: 2px solid rgba(246,240,216,.85);
+    box-shadow: 0 3px 8px rgba(20,30,10,.35);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; line-height: 1;
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .marker:hover { transform: translate(-50%,-50%) scale(1.28); box-shadow: 0 6px 14px rgba(20,30,10,.45); z-index: 5; }
+  .marker[data-cat="plants"]     { outline: 3px solid rgba(163,196,106,.9); }
+  .marker[data-cat="birds"]      { outline: 3px solid rgba(129,171,203,.9); }
+  .marker[data-cat="insects"]    { outline: 3px solid rgba(214,178,94,.9);  }
+  .marker[data-cat="amphibians"] { outline: 3px solid rgba(110,181,160,.9); }
+
+  /* ---------- Simulation ---------- */
+  #foilCanvas { touch-action: none; cursor: crosshair; display: block; }
+  #foilCanvas.no-rub { cursor: default; pointer-events: none; }
+
+  .pressure-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 232px; height: 8px;
+    transform: rotate(-90deg);
+    background: #e4e4e7; border-radius: 9999px; outline: none;
+  }
+  .pressure-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #c9c9cd; border: 1px solid #b3b3b8;
+    box-shadow: 0 2px 5px rgba(0,0,0,.25); cursor: pointer;
+  }
+  .pressure-slider::-moz-range-thumb {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #c9c9cd; border: 1px solid #b3b3b8;
+    box-shadow: 0 2px 5px rgba(0,0,0,.25); cursor: pointer;
+  }
+  .vertical-label { writing-mode: vertical-rl; }
+
+  .ctrl-btn {
+    width: 3.5rem; height: 3.5rem; border-radius: 9999px;
+    background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem; transition: transform .15s, background .15s;
+  }
+  .ctrl-btn:hover  { transform: scale(1.06); }
+  .ctrl-btn.off    { background: #e5e5e7; opacity: .55; }
+
+  /* ---------- Toast ---------- */
+  #toast {
+    position: fixed; left: 50%; bottom: 7rem;
+    transform: translateX(-50%) translateY(20px);
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s ease, transform .3s ease;
+    z-index: 60;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- Collection patches ---------- */
+  .patch {
+    position: absolute;
+    width: 7.2rem; height: 7.2rem;
+    transform: translate(-50%,-50%) rotate(var(--tilt, 0deg));
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,.18));
+    cursor: pointer;
+    transition: transform .2s ease;
+  }
+  .patch:hover { transform: translate(-50%,-50%) rotate(var(--tilt,0deg)) scale(1.1); z-index: 5; }
+  .patch-face {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg,#f5f5f6 0%,#d3d3d7 22%,#fbfbfc 41%,#c6c6cb 63%,#f0f0f2 82%,#dbdbde 100%);
+  }
+  .shape-circle .patch-face { border-radius: 9999px; }
+  .shape-oval   .patch-face { border-radius: 50% / 42%; }
+  .shape-rect   { width: 9.6rem; height: 5.4rem; }
+  .shape-rect   .patch-face { border-radius: .6rem; }
+  .shape-shield .patch-face { clip-path: polygon(50% 0, 100% 13%, 100% 56%, 50% 100%, 0 56%, 0 13%); }
+  .shape-tri    .patch-face { clip-path: polygon(50% 3%, 97% 88%, 3% 88%); }
+  .patch-emoji {
+    font-size: 3rem;
+    filter: grayscale(1) brightness(1.08) contrast(.72)
+            drop-shadow(1px 1px 0 rgba(255,255,255,.85))
+            drop-shadow(-1px -1px 1px rgba(0,0,0,.35));
+  }
+  .patch-q { font-size: 2.2rem; color: #9a9aa0; font-weight: 700; }
+  .patch.locked { opacity: .32; cursor: default; }
+  .patch.locked .patch-face { outline: 2px dashed #b6b6bb; outline-offset: -6px; }
+</style>
+</head>
+
+<body class="bg-white text-gray-800 antialiased">
+
+<!-- ===================================================================
+     HEADER : 상단은 항상 클린 화이트, 우측 상단 고정 내비게이션
+==================================================================== -->
+<header id="siteHeader" class="relative z-30 bg-white px-6 md:px-10 pt-5 pb-6 flex items-start justify-between select-none">
+  <button class="nav-link text-left" data-page="page-map" aria-label="홈으로">
+    <span class="text-lg md:text-xl font-bold tracking-[0.28em] text-gray-700">블로동<span class="text-lime-600 mx-0.5">✳</span>고분군</span>
+    <span class="block text-[10px] tracking-widest text-lime-700/70 mt-0.5">BULRODONG ANCIENT TOMBS PARK</span>
+  </button>
+  <nav class="flex flex-col items-end gap-1.5 text-lg md:text-2xl text-gray-800">
+    <button class="nav-link active" data-page="page-map">Map</button>
+    <button class="nav-link" data-page="page-sim">Portage Foil Stamp simulation</button>
+    <button class="nav-link" data-page="page-collection">Collection</button>
+    <button class="nav-link" data-page="page-services">Services</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- =================================================================
+       PAGE 1 : MAP — 일러스트 지도 + 카테고리별 ✳ 마커
+  ================================================================== -->
+  <section id="page-map" class="page page-fixed relative">
+    <!-- [MAP BACKGROUND IMAGE]
+         지도 배경 이미지를 쓰려면 아래 JS의 ASSETS.mapBackground 에 파일 경로를 넣으세요.
+         (예: 'assets/map.jpg') — 이미지가 지정되면 내장 SVG 일러스트 지도는 자동으로 숨겨집니다. -->
+    <div id="mapWrap" class="map-bg absolute inset-0 bg-cover bg-center">
+
+      <!-- 내장 일러스트 지도 (배경 이미지 미지정 시 표시) -->
+      <svg id="mapSvg" viewBox="0 0 1280 760" preserveAspectRatio="xMidYMid slice"
+           class="absolute inset-0 w-full h-full">
+        <text x="640" y="86" text-anchor="middle" fill="#f4f0da" font-size="46"
+              font-weight="700" letter-spacing="14" opacity=".92">블로동 고분군</text>
+
+        <!-- 공원 외곽 (크림색 테두리) -->
+        <path d="M170,430 C120,340 220,250 330,240 C390,150 520,120 640,160
+                 C760,120 900,140 980,220 C1100,240 1170,330 1105,420
+                 C1145,505 1040,585 920,562 C825,648 640,655 540,592
+                 C420,645 300,600 268,520 C190,510 148,482 170,430 Z"
+              fill="#c9dc98" stroke="#f5eeda" stroke-width="16" stroke-linejoin="round"/>
+
+        <!-- 내부 지형 (짙은 초록 언덕) -->
+        <path d="M360,300 C430,255 560,255 620,300 C600,360 480,385 400,360 Z" fill="#aec478" opacity=".9"/>
+        <path d="M760,300 C860,270 960,300 1000,360 C960,430 830,440 770,395 Z" fill="#aec478" opacity=".9"/>
+        <path d="M330,470 C400,440 520,455 560,510 C510,565 380,570 330,530 Z" fill="#b8cd85" opacity=".9"/>
+
+        <!-- 산책로 -->
+        <path d="M250,470 C360,430 470,440 560,400 C660,360 760,370 880,340"
+              fill="none" stroke="#f7f3e2" stroke-width="7" stroke-linecap="round" opacity=".85"/>
+        <path d="M420,560 C520,520 620,520 700,470 C780,425 880,430 980,400"
+              fill="none" stroke="#f7f3e2" stroke-width="6" stroke-linecap="round" opacity=".8"/>
+        <path d="M560,400 C580,340 610,300 660,260"
+              fill="none" stroke="#f7f3e2" stroke-width="5" stroke-linecap="round" opacity=".75"/>
+
+        <!-- 마당 이름 -->
+        <text x="470" y="292" fill="#eaa94e" font-size="26" font-weight="700" opacity=".95">제 1마당</text>
+        <text x="345" y="540" fill="#eaa94e" font-size="26" font-weight="700" opacity=".95">제 2마당</text>
+        <text x="880" y="392" fill="#eaa94e" font-size="26" font-weight="700" opacity=".95">제 3마당</text>
+        <text x="640" y="726" text-anchor="middle" fill="#f4f0da" font-size="30"
+              font-weight="700" letter-spacing="10" opacity=".85">블로동 고분군</text>
+      </svg>
+
+      <!-- ✳ 마커 (JS에서 생성) -->
+      <div id="markers" class="absolute inset-0"></div>
+
+      <!-- 카테고리 범례 -->
+      <div class="absolute left-4 bottom-4 flex flex-wrap gap-2 text-xs md:text-sm">
+        <span class="px-3 py-1.5 rounded-full bg-white/85 backdrop-blur shadow flex items-center gap-1.5">
+          <i class="w-2.5 h-2.5 rounded-full inline-block" style="background:#7fa650"></i>식물 Plants</span>
+        <span class="px-3 py-1.5 rounded-full bg-white/85 backdrop-blur shadow flex items-center gap-1.5">
+          <i class="w-2.5 h-2.5 rounded-full inline-block" style="background:#5f8fb4"></i>새 Birds</span>
+        <span class="px-3 py-1.5 rounded-full bg-white/85 backdrop-blur shadow flex items-center gap-1.5">
+          <i class="w-2.5 h-2.5 rounded-full inline-block" style="background:#c9a24b"></i>곤충 Insects</span>
+        <span class="px-3 py-1.5 rounded-full bg-white/85 backdrop-blur shadow flex items-center gap-1.5">
+          <i class="w-2.5 h-2.5 rounded-full inline-block" style="background:#5da08e"></i>양서류 Amphibians</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       PAGE 2 : SIMULATION — 구겨진 은박 포일 위 문지르기(엠보싱) 체험
+  ================================================================== -->
+  <section id="page-sim" class="page page-fixed relative hidden bg-[#d9d9db]">
+    <canvas id="foilCanvas" class="absolute inset-0 w-full h-full"></canvas>
+
+    <!-- Go to Map (뒤로가기) -->
+    <button id="backToMap"
+            class="absolute top-4 left-4 z-20 px-5 py-2.5 rounded-full bg-white/90 backdrop-blur
+                   shadow-lg text-sm md:text-base font-medium hover:bg-white transition">
+      ← Go to Map
+    </button>
+
+    <!-- 우측 컨트롤 바 : pressure 슬라이더 / 리셋 / 손 아이콘 -->
+    <div class="absolute right-5 md:right-8 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-4">
+      <div class="relative w-16 h-72 bg-white rounded-full shadow-lg flex items-center justify-center">
+        <input id="pressure" class="pressure-slider" type="range" min="5" max="100" value="50"
+               aria-label="pressure">
+        <span class="vertical-label absolute -left-7 top-1/2 -translate-y-1/2 text-xs text-gray-500 tracking-widest">pressure</span>
+      </div>
+      <button id="resetBtn" class="ctrl-btn" title="Reset" aria-label="reset">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/>
+        </svg>
+      </button>
+      <button id="handBtn" class="ctrl-btn" title="Rub mode on/off" aria-pressed="true" aria-label="rub mode">✋</button>
+    </div>
+
+    <!-- 하단 안내 문구 + 진행률 -->
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 text-center w-[92%] md:w-auto">
+      <p class="inline-block px-5 py-2.5 rounded-full bg-white/75 backdrop-blur text-gray-600 text-sm md:text-base shadow">
+        Rub with your hand to discover the hidden treasures of Bulrodong Ancient Tombs Park!
+        <span id="revealPct" class="ml-2 font-semibold text-lime-700">0%</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       PAGE 3 : COLLECTION — 자켓 사진(좌) + 원형 포일 패치 갤러리(우)
+  ================================================================== -->
+  <section id="page-collection" class="page hidden flex flex-col md:flex-row overflow-auto">
+    <!-- 좌측 : 포일 패치를 단 자켓 -->
+    <div class="relative w-full md:w-[38%] min-h-[320px] md:min-h-0">
+      <!-- [COLLECTION JACKET PHOTO]
+           자켓 사진을 쓰려면 아래 JS의 ASSETS.jacketImage 에 파일 경로를 넣으세요. (예: 'assets/jacket.jpg') -->
+      <img id="jacketImg" alt="포일 패치를 단 자켓" class="hidden absolute inset-0 w-full h-full object-cover">
+      <div id="jacketFallback" class="absolute inset-0 flex items-center justify-center"
+           style="background:linear-gradient(160deg,#5c6247 0%,#4c5239 55%,#3e442f 100%);">
+        <div class="relative w-[70%] aspect-[3/4] rounded-[2.5rem] shadow-2xl"
+             style="background:linear-gradient(150deg,#6b7252,#565d40);">
+          <div class="patch shape-circle" style="left:32%;top:28%;--tilt:-8deg"><div class="patch-face"><span class="patch-emoji">🦋</span></div></div>
+          <div class="patch shape-shield" style="left:68%;top:40%;--tilt:6deg"><div class="patch-face"><span class="patch-emoji">🐸</span></div></div>
+          <div class="patch shape-rect"   style="left:44%;top:62%;--tilt:-4deg"><div class="patch-face"><span class="patch-emoji">🐦</span></div></div>
+          <div class="patch shape-oval"   style="left:70%;top:78%;--tilt:10deg"><div class="patch-face"><span class="patch-emoji">🪻</span></div></div>
+          <p class="absolute bottom-4 w-full text-center text-[#e9e5cf] text-xs tracking-widest">FOIL PATCH JACKET</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 우측 : 원형 패치 갤러리 -->
+    <div class="flex-1 flex flex-col items-center justify-center py-12 px-6">
+      <h2 class="text-xl md:text-2xl font-semibold text-gray-700 mb-1">My Foil Stamp Collection</h2>
+      <p class="text-sm text-gray-400 mb-8">발견한 보물 <span id="collCount" class="text-lime-700 font-semibold">0 / 0</span></p>
+      <div id="patchCircle" class="relative w-[min(78vw,32rem)] aspect-square"></div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       PAGE 4 : SERVICES
+  ================================================================== -->
+  <section id="page-services" class="page hidden overflow-auto bg-[#f6f7f2]">
+    <div class="max-w-5xl mx-auto py-16 px-6">
+      <h2 class="text-2xl md:text-3xl font-semibold text-gray-700 mb-2">Services</h2>
+      <p class="text-gray-500 mb-10">블로동 고분군에서 만나는 자연 · 탁본 프로그램</p>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-3xl shadow p-8">
+          <div class="text-3xl mb-4">🖐️</div>
+          <h3 class="font-semibold text-lg mb-2 text-gray-700">현장 탁본 체험 키트</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">공원 곳곳의 금속 스탬프 명판을 은박 포일로 직접 문질러 나만의 탁본 패치를 만들어 보세요.</p>
+        </div>
+        <div class="bg-white rounded-3xl shadow p-8">
+          <div class="text-3xl mb-4">🌿</div>
+          <h3 class="font-semibold text-lg mb-2 text-gray-700">생태 도슨트 투어</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">고분군에 사는 식물 · 새 · 곤충 · 양서류를 해설사와 함께 관찰하는 계절별 워킹 투어입니다.</p>
+        </div>
+        <div class="bg-white rounded-3xl shadow p-8">
+          <div class="text-3xl mb-4">🎖️</div>
+          <h3 class="font-semibold text-lg mb-2 text-gray-700">포일 패치 굿즈</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">디지털 컬렉션을 완성하면 실물 포일 패치와 교환할 수 있어요. 자켓에 달아 나만의 컬렉션을 뽐내 보세요.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 발견 토스트 -->
+<div id="toast" class="px-7 py-3.5 rounded-full bg-white/95 backdrop-blur shadow-2xl text-gray-800 text-base md:text-lg font-semibold whitespace-nowrap"></div>
+
+<script>
+/* =====================================================================
+   ★★★ ASSET PLACEHOLDERS — 여기에 파일 경로만 바꿔 넣으면 됩니다 ★★★
+   -------------------------------------------------------------------
+   · null 로 두면 내장(프로시저럴/이모지) 그래픽이 자동 사용되어
+     에셋 없이도 전체 플로우가 동작합니다.
+   · 스탬프(패턴) 이미지는 "중간 회색(#808080) 배경 위의 그레이스케일
+     음영/엣지 맵" 형태일 때 엠보싱 결과가 가장 좋습니다.
+===================================================================== */
+const ASSETS = {
+  /* [MAP BACKGROUND]        예: 'assets/map.jpg' */
+  mapBackground: null,
+  /* [FOIL SURFACE TEXTURE]  구겨진 은박 포일 사진, 예: 'assets/foil-surface.jpg' */
+  foilTexture: null,
+  /* [COLLECTION JACKET]     예: 'assets/jacket.jpg' */
+  jacketImage: null,
+};
+
+/* 숨겨진 그래픽(스탬프) 목록 — src 에 각 패턴 파일 경로를 넣으세요.
+   emoji 는 src 가 없거나 로드 실패 시 사용되는 대체 그래픽입니다. */
+const STAMPS = [
+  /* [PLANT PATTERN FILES] */
+  { id:'iris',      cat:'plants',     nameKo:'붓꽃',     nameEn:'Iris',                emoji:'🪻', shape:'oval',   src:null /* 'assets/stamps/plant-iris.png' */ },
+  { id:'daylily',   cat:'plants',     nameKo:'원추리',   nameEn:'Daylily',             emoji:'🌼', shape:'circle', src:null /* 'assets/stamps/plant-daylily.png' */ },
+  /* [BIRD PATTERN FILES] */
+  { id:'kingfisher',cat:'birds',      nameKo:'물총새',   nameEn:'Common Kingfisher',   emoji:'🐦', shape:'tri',    src:null /* 'assets/stamps/bird-kingfisher.png' */ },
+  { id:'mandarin',  cat:'birds',      nameKo:'원앙',     nameEn:'Mandarin Duck',       emoji:'🦆', shape:'shield', src:null /* 'assets/stamps/bird-mandarin.png' */ },
+  /* [INSECT PATTERN FILES] */
+  { id:'butterfly', cat:'insects',    nameKo:'네발나비', nameEn:'Comma Butterfly',     emoji:'🦋', shape:'circle', src:null /* 'assets/stamps/insect-butterfly.png' */ },
+  { id:'dragonfly', cat:'insects',    nameKo:'된장잠자리',nameEn:'Wandering Glider',   emoji:'🦗', shape:'rect',   src:null /* 'assets/stamps/insect-dragonfly.png' — 잠자리 도판으로 교체 권장 */ },
+  /* [AMPHIBIAN PATTERN FILES] */
+  { id:'toadlet',   cat:'amphibians', nameKo:'맹꽁이',   nameEn:'Narrow-mouthed Toad', emoji:'🐸', shape:'circle', src:null /* 'assets/stamps/amp-maenggongi.png' */ },
+  { id:'toad',      cat:'amphibians', nameKo:'두꺼비',   nameEn:'Asian Toad',          emoji:'🐸', shape:'shield', src:null /* 'assets/stamps/amp-toad.png' */ },
+];
+
+/* 지도 위 ✳ 마커 배치 (percent 좌표) */
+const MARKERS = [
+  { x:29, y:52, cat:'plants' },     { x:47, y:65, cat:'plants' },     { x:73, y:57, cat:'plants' },
+  { x:25, y:67, cat:'birds' },      { x:57, y:38, cat:'birds' },      { x:82, y:47, cat:'birds' },
+  { x:39, y:43, cat:'insects' },    { x:64, y:67, cat:'insects' },    { x:86, y:60, cat:'insects' },
+  { x:33, y:76, cat:'amphibians' }, { x:52, y:53, cat:'amphibians' }, { x:70, y:37, cat:'amphibians' },
+];
+
+/* ===================================================================
+   공통 유틸
+=================================================================== */
+const $ = (s) => document.querySelector(s);
+const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const clamp255 = (v) => v < 0 ? 0 : v > 255 ? 255 : v;
+
+function loadImage(src) {
+  return new Promise((res) => {
+    if (!src) return res(null);
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => res(null);
+    im.src = src;
+  });
+}
+
+function drawCover(ctx, img, w, h) {
+  const ar = img.width / img.height, br = w / h;
+  let dw, dh;
+  if (ar > br) { dh = h; dw = h * ar; } else { dw = w; dh = w / ar; }
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+}
+
+/* ===================================================================
+   SPA 페이지 전환 — hidden 클래스 토글
+=================================================================== */
+const PAGES = ['page-map', 'page-sim', 'page-collection', 'page-services'];
+
+function showPage(id) {
+  PAGES.forEach((p) => $('#' + p).classList.toggle('hidden', p !== id));
+  document.querySelectorAll('.nav-link[data-page]').forEach((b) =>
+    b.classList.toggle('active', b.dataset.page === id));
+  if (id === 'page-collection') renderCollection();
+}
+
+document.querySelectorAll('.nav-link[data-page]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.page;
+    if (id === 'page-sim') {
+      /* 시뮬레이션 탭 직접 진입: 진행 중이면 유지, 아니면 무작위 스탬프 */
+      if (sim.ready && sim.stamp) showPage(id);
+      else openSim(STAMPS[Math.floor(Math.random() * STAMPS.length)]);
+    } else {
+      showPage(id);
+    }
+  });
+});
+
+/* ===================================================================
+   MAP — 마커 생성 & 클릭 시 카테고리 내 무작위 스탬프로 시뮬레이션 진입
+=================================================================== */
+function initMap() {
+  if (ASSETS.mapBackground) {
+    $('#mapWrap').style.backgroundImage = `url('${ASSETS.mapBackground}')`;
+    $('#mapSvg').classList.add('hidden');
+  }
+  const wrap = $('#markers');
+  MARKERS.forEach((m) => {
+    const b = document.createElement('button');
+    b.className = 'marker';
+    b.dataset.cat = m.cat;
+    b.style.left = m.x + '%';
+    b.style.top = m.y + '%';
+    b.textContent = '✳';
+    b.title = { plants: '식물', birds: '새', insects: '곤충', amphibians: '양서류' }[m.cat];
+    b.addEventListener('click', () => {
+      const pool = STAMPS.filter((s) => s.cat === m.cat);
+      openSim(pool[Math.floor(Math.random() * pool.length)]);
+    });
+    wrap.appendChild(b);
+  });
+}
+
+/* ===================================================================
+   SIMULATION — 3D 엠보스/범프 포일 시뮬레이션
+   -------------------------------------------------------------------
+   구조 (Dual Layer)
+     · 하부 패턴 레이어  : 그레이스케일 스탬프(높이 맵)
+     · 상부 포일 레이어  : 구겨진 은박 텍스처
+   렌더링
+     · buildEmbossed() 가 "포일 + 스탬프 릴리프가 완전히 찍힌 상태"를
+       픽셀 단위(getImageData)로 1회 미리 계산해 둔다.
+     · 문지르면 reveal 캔버스(알파 마스크)에 소프트 원형 브러시가 누적되고,
+       매 프레임 destination-in 합성으로 '찍힌 포일'이 마스크만큼 드러난다.
+       → 포일 자체가 서서히 눌려 양각되는 것처럼 보인다.
+=================================================================== */
+const sim = {
+  canvas: null, ctx: null, w: 0, h: 0,
+  foil: null, embossed: null, reveal: null, rctx: null, temp: null, tctx: null,
+  stamp: null, contentIdx: [], found: false,
+  pressure: 0.5, rubbing: true, ready: false,
+};
+let foilImg = null;         // 사용자 포일 텍스처 (없으면 프로시저럴 생성)
+let renderQueued = false;
+let lastCheck = 0;
+
+/* --- 프로시저럴 구겨진 은박 포일 (ASSETS.foilTexture 미지정 시) --- */
+function makeFoilCanvas(w, h) {
+  const c = mkCanvas(w, h), x = c.getContext('2d');
+  x.fillStyle = '#d7d7d9';
+  x.fillRect(0, 0, w, h);
+  /* 넓고 부드러운 명암 얼룩 */
+  for (let i = 0; i < 55; i++) {
+    const cx = Math.random() * w, cy = Math.random() * h;
+    const r = 60 + Math.random() * Math.min(w, h) * 0.35;
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, Math.random() > 0.5 ? 'rgba(255,255,255,0.10)' : 'rgba(88,88,94,0.08)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g;
+    x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
+  }
+  /* 구김 주름 (밝은 선 + 살짝 어긋난 그림자 선) */
+  x.lineCap = 'round';
+  for (let i = 0; i < 120; i++) {
+    const x0 = Math.random() * w, y0 = Math.random() * h;
+    const ang = Math.random() * Math.PI * 2;
+    const len = 40 + Math.random() * w * 0.4;
+    const x1 = x0 + Math.cos(ang) * len, y1 = y0 + Math.sin(ang) * len;
+    const mx = (x0 + x1) / 2 + (Math.random() - 0.5) * 70;
+    const my = (y0 + y1) / 2 + (Math.random() - 0.5) * 70;
+    const lw = 0.6 + Math.random() * 2.2;
+    x.strokeStyle = `rgba(72,72,80,${0.08 + Math.random() * 0.16})`;
+    x.lineWidth = lw + 1.4;
+    x.beginPath(); x.moveTo(x0 + 1.6, y0 + 1.6); x.quadraticCurveTo(mx + 1.6, my + 1.6, x1 + 1.6, y1 + 1.6); x.stroke();
+    x.strokeStyle = `rgba(255,255,255,${0.22 + Math.random() * 0.38})`;
+    x.lineWidth = lw;
+    x.beginPath(); x.moveTo(x0, y0); x.quadraticCurveTo(mx, my, x1, y1); x.stroke();
+  }
+  /* 미세 그레인 */
+  const id = x.getImageData(0, 0, w, h), d = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * 9;
+    d[i] = clamp255(d[i] + n); d[i + 1] = clamp255(d[i + 1] + n); d[i + 2] = clamp255(d[i + 2] + n);
+  }
+  x.putImageData(id, 0, 0);
+  return c;
+}
+
+/* --- 이모지 대체 스탬프 (src 미지정/로드 실패 시) --- */
+function makeEmojiStamp(stamp) {
+  const s = 720, c = mkCanvas(s, s), x = c.getContext('2d');
+  x.fillStyle = '#808080';
+  x.fillRect(0, 0, s, s);
+  x.font = '400px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",serif';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillText(stamp.emoji, s / 2, s / 2 + 24);
+  return c;
+}
+
+/* --- 완전히 찍힌 상태의 포일(embossed)을 미리 계산 --- */
+function buildEmbossed(stampSrc) {
+  const w = sim.w, h = sim.h;
+  const box = Math.min(w, h) * 0.62;
+  const ar = stampSrc.width / stampSrc.height;
+  const sw = ar >= 1 ? box : box * ar;
+  const sh = ar >= 1 ? box / ar : box;
+  const sx = (w - sw) / 2, sy = (h - sh) / 2;
+
+  /* 1) 높이 맵: 중간 회색 배경 + (가장자리를 페더 처리한) 스탬프 */
+  const hm = mkCanvas(w, h), hx = hm.getContext('2d');
+  hx.fillStyle = '#808080';
+  hx.fillRect(0, 0, w, h);
+
+  const fs = mkCanvas(Math.ceil(sw), Math.ceil(sh)), fx2 = fs.getContext('2d');
+  fx2.drawImage(stampSrc, 0, 0, sw, sh);
+  fx2.globalCompositeOperation = 'destination-in';
+  const fg = fx2.createRadialGradient(sw / 2, sh / 2, Math.min(sw, sh) * 0.38, sw / 2, sh / 2, Math.min(sw, sh) * 0.52);
+  fg.addColorStop(0, 'rgba(0,0,0,1)');
+  fg.addColorStop(1, 'rgba(0,0,0,0)');
+  fx2.fillStyle = fg;
+  fx2.fillRect(0, 0, sw, sh);
+
+  hx.filter = 'grayscale(1) blur(1.2px)';
+  hx.drawImage(fs, sx, sy);
+  hx.filter = 'none';
+
+  const hd = hx.getImageData(0, 0, w, h).data;
+  const lum = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const p = i * 4;
+    lum[i] = hd[p] * 0.299 + hd[p + 1] * 0.587 + hd[p + 2] * 0.114;
+  }
+
+  /* 2) 포일 위에 릴리프(좌상단 광원 엠보싱) + 은은한 톤 반영 */
+  const emb = mkCanvas(w, h), ex = emb.getContext('2d');
+  ex.drawImage(sim.foil, 0, 0);
+  const od = ex.getImageData(0, 0, w, h), d = od.data;
+  const STR = 2.0, W2 = w * 2;
+  for (let y = 2; y < h - 2; y++) {
+    let i = y * w + 2;
+    for (let xx = 2; xx < w - 2; xx++, i++) {
+      const rel = (lum[i - w - 1] - lum[i + w + 1]) * STR
+                + (lum[i - W2 - 2] - lum[i + W2 + 2]) * STR * 0.5;
+      const tone = (lum[i] - 128) * 0.22;
+      const v = rel + tone;
+      if (v > 1 || v < -1) {
+        const p = i * 4;
+        d[p]     = clamp255(d[p] + v);
+        d[p + 1] = clamp255(d[p + 1] + v);
+        d[p + 2] = clamp255(d[p + 2] + v);
+      }
+    }
+  }
+  ex.putImageData(od, 0, 0);
+  sim.embossed = emb;
+
+  /* 3) 진행률 판정용 '내용 픽셀' 샘플링 (스탬프 영역 안, 4px 간격) */
+  const idxs = [];
+  const bx0 = Math.max(2, Math.floor(sx)), bx1 = Math.min(w - 3, Math.ceil(sx + sw));
+  const by0 = Math.max(2, Math.floor(sy)), by1 = Math.min(h - 3, Math.ceil(sy + sh));
+  for (let y = by0; y < by1; y += 4) {
+    for (let xx = bx0; xx < bx1; xx += 4) {
+      const i = y * w + xx;
+      const grad = Math.abs(lum[i] - lum[i + 1]) + Math.abs(lum[i] - lum[i + w]);
+      if (grad > 10 || Math.abs(lum[i] - 128) > 26) idxs.push(i);
+    }
+  }
+  if (!idxs.length) {
+    for (let y = by0; y < by1; y += 8)
+      for (let xx = bx0; xx < bx1; xx += 8) idxs.push(y * w + xx);
+  }
+  sim.contentIdx = idxs;
+}
+
+/* --- 시뮬레이션 셋업 (스탬프 진입/리사이즈 시) --- */
+async function setupSim(stamp, keepReveal = null) {
+  sim.stamp = stamp;
+  sim.found = false;
+  sim.ready = false;
+
+  const cv = sim.canvas, host = cv.parentElement;
+  const w = host.clientWidth, h = host.clientHeight;
+  sim.w = cv.width = w;
+  sim.h = cv.height = h;
+
+  sim.reveal = mkCanvas(w, h); sim.rctx = sim.reveal.getContext('2d');
+  sim.temp   = mkCanvas(w, h); sim.tctx = sim.temp.getContext('2d');
+
+  /* 상부 포일 레이어 */
+  const foil = mkCanvas(w, h), fx = foil.getContext('2d');
+  if (foilImg) drawCover(fx, foilImg, w, h);
+  else fx.drawImage(makeFoilCanvas(w, h), 0, 0);
+  sim.foil = foil;
+
+  /* 하부 패턴 레이어 */
+  const img = await loadImage(stamp.src);
+  buildEmbossed(img || makeEmojiStamp(stamp));
+
+  if (keepReveal) sim.rctx.drawImage(keepReveal, 0, 0, w, h);
+
+  sim.ready = true;
+  updateProgressUI(0);
+  render();
+  if (keepReveal) checkProgress();
+}
+
+function openSim(stamp) {
+  showPage('page-sim');
+  setupSim(stamp);
+}
+
+/* --- 렌더: 포일 → (embossed × reveal 마스크) 합성 --- */
+function render() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    if (!sim.ready) return;
+    const { ctx, w, h, tctx } = sim;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(sim.foil, 0, 0);
+    tctx.globalCompositeOperation = 'source-over';
+    tctx.clearRect(0, 0, w, h);
+    tctx.drawImage(sim.embossed, 0, 0);
+    tctx.globalCompositeOperation = 'destination-in';
+    tctx.drawImage(sim.reveal, 0, 0);
+    ctx.drawImage(sim.temp, 0, 0);
+  });
+}
+
+/* --- 소프트 원형 브러시 (pressure 슬라이더 → 강도) --- */
+function brushAt(x, y) {
+  const r = Math.max(42, Math.min(sim.w, sim.h) * 0.078);
+  const a = 0.03 + sim.pressure * 0.24;
+  const g = sim.rctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(255,255,255,${a})`);
+  g.addColorStop(0.6, `rgba(255,255,255,${a * 0.55})`);
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  sim.rctx.fillStyle = g;
+  sim.rctx.beginPath();
+  sim.rctx.arc(x, y, r, 0, Math.PI * 2);
+  sim.rctx.fill();
+}
+
+/* --- 진행률(80% 목표) 판정 --- */
+function updateProgressUI(ratio) {
+  $('#revealPct').textContent = Math.round(ratio * 100) + '%';
+}
+
+function checkProgress() {
+  if (!sim.ready || !sim.contentIdx.length) return;
+  const data = sim.rctx.getImageData(0, 0, sim.w, sim.h).data;
+  let hit = 0;
+  for (const i of sim.contentIdx) if (data[i * 4 + 3] > 150) hit++;
+  const ratio = hit / sim.contentIdx.length;
+  updateProgressUI(ratio);
+  if (ratio >= 0.8 && !sim.found) {
+    sim.found = true;
+    addCollected(sim.stamp.id);
+    showToast(`Found it! ${sim.stamp.nameKo} (${sim.stamp.nameEn})`);
+  }
+}
+
+/* --- 포인터(마우스/터치) 문지르기 --- */
+function initSimEvents() {
+  const cv = sim.canvas;
+  let dragging = false, lastPt = null;
+
+  const toCanvas = (e) => {
+    const r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) };
+  };
+
+  cv.addEventListener('pointerdown', (e) => {
+    if (!sim.rubbing || !sim.ready) return;
+    dragging = true;
+    lastPt = toCanvas(e);
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    brushAt(lastPt.x, lastPt.y);
+    render();
+  });
+
+  cv.addEventListener('pointermove', (e) => {
+    if (!dragging || !sim.ready) return;
+    const p = toCanvas(e);
+    const dx = p.x - lastPt.x, dy = p.y - lastPt.y;
+    const n = Math.max(1, Math.floor(Math.hypot(dx, dy) / 14));
+    for (let i = 1; i <= n; i++) brushAt(lastPt.x + dx * i / n, lastPt.y + dy * i / n);
+    lastPt = p;
+    render();
+    const now = performance.now();
+    if (now - lastCheck > 450) { lastCheck = now; checkProgress(); }
+  });
+
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) =>
+    cv.addEventListener(t, () => {
+      if (!dragging) return;
+      dragging = false;
+      checkProgress();
+    }));
+
+  /* 컨트롤 바 */
+  $('#pressure').addEventListener('input', (e) => { sim.pressure = e.target.value / 100; });
+
+  $('#resetBtn').addEventListener('click', () => {
+    if (!sim.ready) return;
+    sim.rctx.clearRect(0, 0, sim.w, sim.h);
+    sim.found = false;
+    updateProgressUI(0);
+    render();
+  });
+
+  $('#handBtn').addEventListener('click', () => {
+    sim.rubbing = !sim.rubbing;
+    $('#handBtn').classList.toggle('off', !sim.rubbing);
+    $('#handBtn').setAttribute('aria-pressed', String(sim.rubbing));
+    cv.classList.toggle('no-rub', !sim.rubbing);
+  });
+
+  $('#backToMap').addEventListener('click', () => showPage('page-map'));
+}
+
+/* ===================================================================
+   COLLECTION — 발견 기록(localStorage) + 원형 패치 갤러리
+=================================================================== */
+const COLL_KEY = 'portage-collection';
+
+function getCollected() {
+  try { return new Set(JSON.parse(localStorage.getItem(COLL_KEY) || '[]')); }
+  catch (_) { return new Set(); }
+}
+
+function addCollected(id) {
+  const s = getCollected();
+  s.add(id);
+  localStorage.setItem(COLL_KEY, JSON.stringify([...s]));
+}
+
+function renderCollection() {
+  const wrap = $('#patchCircle');
+  wrap.innerHTML = '';
+  const got = getCollected();
+  const n = STAMPS.length;
+  STAMPS.forEach((s, i) => {
+    const ang = -Math.PI / 2 + i * (Math.PI * 2 / n);
+    const R = 38;
+    const el = document.createElement('div');
+    const has = got.has(s.id);
+    el.className = `patch shape-${s.shape}${has ? '' : ' locked'}`;
+    el.style.left = (50 + Math.cos(ang) * R) + '%';
+    el.style.top  = (50 + Math.sin(ang) * R) + '%';
+    el.style.setProperty('--tilt', (Math.sin(i * 3.7) * 14).toFixed(1) + 'deg');
+    el.innerHTML = `<div class="patch-face">${has ? `<span class="patch-emoji">${s.emoji}</span>` : '<span class="patch-q">?</span>'}</div>`;
+    el.title = has ? `${s.nameKo} · ${s.nameEn}` : '아직 발견하지 못한 보물이에요';
+    if (has) el.addEventListener('click', () => openSim(s));
+    wrap.appendChild(el);
+  });
+  $('#collCount').textContent = `${got.size} / ${n}`;
+}
+
+/* ===================================================================
+   토스트 & 초기화
+=================================================================== */
+let toastTimer = null;
+function showToast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function setHeaderVar() {
+  document.documentElement.style.setProperty('--header-h', $('#siteHeader').offsetHeight + 'px');
+}
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  setHeaderVar();
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (sim.ready && !$('#page-sim').classList.contains('hidden')) {
+      const old = sim.reveal;            /* 문지른 흔적 보존 */
+      setupSim(sim.stamp, old);
+    }
+  }, 300);
+});
+
+(async function init() {
+  setHeaderVar();
+  sim.canvas = $('#foilCanvas');
+  sim.ctx = sim.canvas.getContext('2d');
+  initMap();
+  initSimEvents();
+
+  /* 자켓 사진 */
+  if (ASSETS.jacketImage) {
+    const j = $('#jacketImg');
+    j.onload = () => { j.classList.remove('hidden'); $('#jacketFallback').classList.add('hidden'); };
+    j.src = ASSETS.jacketImage;
+  }
+
+  /* 포일 텍스처 프리로드 */
+  foilImg = await loadImage(ASSETS.foilTexture);
+
+  showPage('page-map');
+})();
+</script>
+</body>
+</html>
