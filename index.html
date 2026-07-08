@@ -24,40 +24,14 @@
   .nav-link.active { font-weight: 600; }
 
   /* ---------- Map ---------- */
-  .map-bg {
-    background-color: #6f8049;
-    background-image:
-      radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.5px),
-      radial-gradient(rgba(28,42,16,.20) 1.2px, transparent 2px),
-      radial-gradient(rgba(224,235,180,.07) 2px, transparent 3px);
-    background-size: 23px 23px, 37px 37px, 61px 61px;
-    background-position: 0 0, 11px 15px, 29px 8px;
-  }
-  .marker {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    width: 2.15rem; height: 2.15rem;
-    border-radius: 9999px;
-    background: #5a6b3d;
-    color: #f7f4e2;
-    border: none;
-    box-shadow: 0 2px 6px rgba(25,35,12,.30);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.12rem; line-height: 1;
+  /* map2.svg 의 꽃 마커 그룹 — 클릭 시 시뮬레이션 진입 */
+  .m2-marker {
     cursor: pointer;
-    transition: transform .18s ease, box-shadow .18s ease;
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform .16s ease;
   }
-  .marker:hover { transform: translate(-50%,-50%) scale(1.26); box-shadow: 0 6px 14px rgba(20,30,10,.45); z-index: 5; }
-  .marker.accent { background: #f6f1da; color: #e8a33d; box-shadow: 0 2px 8px rgba(120,80,10,.35); }
-
-  /* 지도 배경 보태니컬 워터마크 */
-  .wm {
-    position: absolute;
-    opacity: .10;
-    filter: grayscale(1) brightness(1.9);
-    line-height: 1;
-    pointer-events: none;
-  }
+  .m2-marker:hover { transform: scale(1.25); }
 
   /* ---------- Simulation ---------- */
   #foilCanvas { touch-action: none; cursor: crosshair; display: block; }
@@ -163,111 +137,26 @@
 <main>
 
   <!-- =================================================================
-       PAGE 1 : MAP — 일러스트 지도 + 카테고리별 ✳ 마커
+       PAGE 1 : MAP — map0(배경) → map1(공원 일러스트) → map2(꽃 마커) 3층 구조
   ================================================================== -->
   <section id="page-map" class="page page-fixed relative">
-    <!-- [MAP BACKGROUND IMAGE]
-         지도 배경 이미지를 쓰려면 아래 JS의 ASSETS.mapBackground 에 파일 경로를 넣으세요.
-         (예: 'assets/map.jpg') — 이미지가 지정되면 내장 SVG 일러스트 지도는 자동으로 숨겨집니다. -->
-    <div id="mapWrap" class="map-bg absolute inset-0 bg-cover bg-center">
-
-      <!-- 배경 보태니컬 워터마크 (실제 지도 이미지 사용 시 함께 가려짐) -->
-      <div id="mapWatermarks" class="absolute inset-0 overflow-hidden pointer-events-none select-none" aria-hidden="true">
-        <span class="wm" style="left:-2%;  top:2%;    font-size:11rem">🪻</span>
-        <span class="wm" style="left:0%;   top:46%;   font-size:9rem">🦋</span>
-        <span class="wm" style="right:-1%; top:4%;    font-size:10rem">🌿</span>
-        <span class="wm" style="right:1%;  bottom:2%; font-size:11rem">🐦</span>
-        <span class="wm" style="left:16%;  bottom:-2%;font-size:8rem">🌾</span>
-        <span class="wm" style="right:19%; top:38%;   font-size:7.5rem">🌸</span>
+    <!-- [MAP BACKGROUND IMAGE] assets/map0.png -->
+    <div id="mapWrap" class="absolute inset-0 bg-cover bg-center" style="background-image:url('assets/map0.png')">
+      <!-- 지도 스테이지 : map1 + map2 를 동일한 915:600 좌표계로 정렬 -->
+      <div id="mapStage" class="absolute inset-0 m-auto"
+           style="aspect-ratio:915/600; max-width:min(96%,1200px); max-height:94%;">
+        <!-- [LOGO] 상단 로고 -->
+        <img src="assets/logo%20(1).svg" alt="블로동 고분군"
+             class="absolute left-1/2 -translate-x-1/2 -top-[3%] w-[clamp(190px,34%,380px)] z-20 pointer-events-none select-none">
+        <!-- [MAP LAYER 1] 공원 부지 일러스트 -->
+        <img src="assets/map1.svg" alt="블로동 고분군 지도"
+             class="absolute inset-0 w-full h-full pointer-events-none select-none">
+        <!-- [MAP LAYER 2] 꽃 마커 — JS가 인라인 주입 후 각 마커에 시뮬레이션 진입 연결 -->
+        <div id="map2Layer" class="absolute inset-0 z-10"></div>
       </div>
-
-      <!-- 내장 일러스트 지도 (배경 이미지 미지정 시 표시) -->
-      <svg id="mapSvg" viewBox="0 0 1280 690" preserveAspectRatio="xMidYMid slice"
-           class="absolute inset-0 w-full h-full">
-        <!-- 상단 타이틀 -->
-        <g text-anchor="middle" fill="#f2ecd4" opacity=".95">
-          <text x="640" y="80" font-size="50" font-weight="700" letter-spacing="20">블루블라</text>
-          <circle cx="760" cy="64" r="6.5" fill="#dfe8b9"/>
-        </g>
-
-        <!-- 공원 부지 (크림색 테두리) -->
-        <path d="M330,320 C270,300 250,240 310,205 C350,150 470,130 560,160
-                 C620,120 720,125 760,165 C830,140 920,160 940,215
-                 C1010,205 1075,250 1050,300 C1110,330 1105,400 1035,415
-                 C1050,470 980,510 905,490 C860,540 760,550 700,515
-                 C660,560 560,570 520,530 C470,585 380,590 350,545
-                 C330,600 260,640 215,600 C160,620 110,585 130,540
-                 C95,520 110,470 165,465 C150,425 195,395 245,405
-                 C240,365 280,335 330,320 Z"
-              fill="#cfe0a2" stroke="#f5efdb" stroke-width="15" stroke-linejoin="round"/>
-
-        <!-- 내부 지형 (마당 언덕) -->
-        <path d="M470,250 C540,215 650,215 700,255 C670,305 540,315 470,285 Z" fill="#b8cd85"/>
-        <rect x="592" y="228" width="42" height="24" rx="3" fill="#8f9f60" opacity=".85"/>
-        <path d="M800,330 C880,300 970,325 990,375 C950,430 850,435 800,395 Z" fill="#b8cd85"/>
-        <path d="M270,480 C330,455 410,470 430,510 C400,555 300,560 270,525 Z" fill="#bdd18a"/>
-        <ellipse cx="960" cy="345" rx="16" ry="10" fill="#9fc3d8" opacity=".9"/>
-
-        <!-- 산책로 -->
-        <g fill="none" stroke="#fbf7ea" stroke-linecap="round" opacity=".92">
-          <path d="M300,430 C420,395 520,410 610,370 C700,335 800,350 900,330" stroke-width="6"/>
-          <path d="M430,510 C520,470 610,480 680,440 C760,400 860,405 950,385" stroke-width="5"/>
-          <path d="M610,370 C620,320 640,285 680,250" stroke-width="4.5"/>
-          <path d="M520,530 C560,505 600,500 640,470" stroke-width="4.5"/>
-          <path d="M215,600 C260,560 300,530 340,515" stroke-width="4.5"/>
-        </g>
-        <!-- 데크계단 (빗금) -->
-        <g stroke="#c96b4f" stroke-width="4.5" stroke-dasharray="7 5" fill="none" opacity=".9">
-          <path d="M700,255 L738,298"/>
-          <path d="M880,262 L918,318"/>
-        </g>
-
-        <!-- 고분 번호 + 시설 표기 -->
-        <g font-size="12.5" fill="#fdf9ec">
-          <g fill="#c0392b">
-            <polygon points="545,220 551,210 557,220"/><polygon points="605,215 611,205 617,215"/>
-            <polygon points="655,220 661,210 667,220"/><polygon points="618,452 624,442 630,452"/>
-            <polygon points="392,596 398,586 404,596"/>
-          </g>
-          <text x="533" y="205">161호</text><text x="594" y="200">138호</text><text x="646" y="205">133호</text>
-          <text x="632" y="446">101호</text><text x="406" y="596">26호</text>
-          <text x="712" y="240">데크계단</text><text x="925" y="335">데크계단</text><text x="770" y="305">돌계단</text>
-          <g fill="#c0392b"><circle cx="516" cy="331" r="3"/><circle cx="512" cy="348" r="3"/><circle cx="507" cy="365" r="3"/><circle cx="502" cy="382" r="3"/>
-            <circle cx="893" cy="318" r="3"/><circle cx="732" cy="357" r="3"/><circle cx="633" cy="412" r="3"/><circle cx="262" cy="443" r="3"/></g>
-          <text x="524" y="336">이정표</text><text x="520" y="353">화장실</text><text x="515" y="370">벤치</text><text x="510" y="387">이정표</text>
-          <text x="901" y="323">조망</text><text x="740" y="362">이정표</text><text x="641" y="417">설명판</text><text x="270" y="448">갈림길</text>
-          <text x="540" y="432">외로운 소나무</text><text x="330" y="590">숲길</text><text x="418" y="352">고분떼쉼터</text>
-        </g>
-
-        <!-- 마당 이름 -->
-        <g fill="#eaa94e" font-size="25" font-weight="700" opacity=".95">
-          <text x="500" y="300">제 1마당</text>
-          <text x="300" y="560">제 2마당</text>
-          <text x="800" y="420">제 3마당</text>
-        </g>
-
-        <!-- 주차장 / 안내소 (부지 밖 좌측) -->
-        <g>
-          <rect x="300" y="330" width="26" height="88" rx="7" fill="#e3e8d4" stroke="#98a67f" stroke-width="2"/>
-          <path d="M304,344 h18 M304,358 h18 M304,372 h18 M304,386 h18 M304,400 h18" stroke="#aab894" stroke-width="1.6"/>
-          <rect x="270" y="366" width="23" height="23" rx="6" fill="#3a6fb0"/>
-          <text x="281" y="383" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">P</text>
-          <circle cx="352" cy="322" r="4.5" fill="#c0392b"/>
-          <text x="362" y="327" font-size="12.5" fill="#fdf9ec">화장실</text>
-          <text x="356" y="345" font-size="12.5" fill="#fdf9ec">관광안내소</text>
-        </g>
-
-        <!-- 하단 로고 -->
-        <g text-anchor="middle" fill="#eef0d6" opacity=".9">
-          <text x="640" y="662" font-size="32" font-weight="700" letter-spacing="14">블로동고분군</text>
-          <circle cx="588" cy="652" r="5.5" fill="#f2d24b"/>
-        </g>
-      </svg>
-
-      <!-- ✳ 마커 (JS에서 생성) -->
-      <div id="markers" class="absolute inset-0"></div>
     </div>
   </section>
+
 
   <!-- =================================================================
        PAGE 2 : SIMULATION — 구겨진 은박 포일 위 문지르기(엠보싱) 체험
@@ -385,8 +274,9 @@
      음영/엣지 맵" 형태일 때 엠보싱 결과가 가장 좋습니다.
 ===================================================================== */
 const ASSETS = {
-  /* [MAP BACKGROUND]        예: 'assets/map.jpg' */
-  mapBackground: null,
+  /* [MAP LAYERS] 지도 배경/부지/마커/로고는 PAGE 1 : MAP 마크업에 직접 연결되어 있음
+     (assets/map0.png · assets/map1.svg · assets/map2.svg · assets/logo (1).svg) */
+  map2Markers: 'assets/map2.svg',
   /* [FOIL SURFACE TEXTURE]  구겨진 은박 포일 사진, 예: 'assets/foil-surface.jpg' */
   foilTexture: null,
   /* [COLLECTION JACKET]     예: 'assets/jacket.jpg' */
@@ -410,25 +300,8 @@ const STAMPS = [
   { id:'toad',      cat:'amphibians', nameKo:'두꺼비',   nameEn:'Asian Toad',          emoji:'🐸', shape:'shield', src:null /* 'assets/stamps/amp-toad.png' */ },
 ];
 
-/* 지도 위 ✳ 마커 배치 (percent 좌표) — 목업처럼 마당별 군집 배치 */
-const MARKERS = [
-  /* 제 1마당 주변 */
-  { x:30, y:44, cat:'plants' },     { x:34, y:38, cat:'birds' },      { x:38, y:35, cat:'insects' },
-  { x:42, y:37, cat:'amphibians' }, { x:46, y:34, cat:'plants' },     { x:50, y:36, cat:'birds' },
-  { x:58, y:32, cat:'insects' },
-  /* 중앙부 */
-  { x:46, y:52, cat:'amphibians' }, { x:50, y:50, cat:'insects' },    { x:44, y:58, cat:'birds' },
-  { x:40, y:55, cat:'plants' },     { x:48, y:62, cat:'plants', accent:true },
-  { x:52, y:60, cat:'birds' },      { x:37, y:60, cat:'insects' },    { x:34, y:62, cat:'amphibians' },
-  /* 제 3마당 */
-  { x:61, y:50, cat:'plants' },     { x:65, y:55, cat:'birds' },      { x:69, y:52, cat:'insects' },
-  { x:72, y:56, cat:'amphibians' }, { x:76, y:53, cat:'plants' },     { x:80, y:56, cat:'birds' },
-  { x:66, y:60, cat:'amphibians' },
-  /* 제 2마당 · 숲길 */
-  { x:22, y:70, cat:'plants' },     { x:25, y:73, cat:'birds' },      { x:28, y:76, cat:'insects' },
-  { x:31, y:73, cat:'amphibians' }, { x:26, y:80, cat:'plants' },     { x:30, y:82, cat:'insects' },
-  { x:35, y:70, cat:'birds' },
-];
+/* 마커 카테고리 — map2.svg 의 꽃 마커에 순서대로(순환) 배정된다 */
+const MARKER_CATS = ['plants', 'birds', 'insects', 'amphibians'];
 
 /* ===================================================================
    공통 유틸
@@ -482,26 +355,47 @@ document.querySelectorAll('.nav-link[data-page]').forEach((btn) => {
 /* ===================================================================
    MAP — 마커 생성 & 클릭 시 카테고리 내 무작위 스탬프로 시뮬레이션 진입
 =================================================================== */
-function initMap() {
-  if (ASSETS.mapBackground) {
-    $('#mapWrap').style.backgroundImage = `url('${ASSETS.mapBackground}')`;
-    $('#mapSvg').classList.add('hidden');
+/* map2.svg 를 인라인으로 주입한 뒤, 각 꽃 마커(circle + 뒤따르는 path들)를
+   <g class="m2-marker"> 로 묶어 클릭 시 해당 카테고리의 시뮬레이션으로 진입시킨다 */
+async function initMap() {
+  const layer = $('#map2Layer');
+  try {
+    const res = await fetch(ASSETS.map2Markers);
+    if (!res.ok) throw new Error(res.status);
+    layer.innerHTML = await res.text();
+    const svg = layer.querySelector('svg');
+    if (!svg) return;
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('class', 'w-full h-full');
+
+    const catName = { plants: '식물', birds: '새', insects: '곤충', amphibians: '양서류' };
+    const children = Array.from(svg.children);
+    let group = null, idx = 0;
+    for (const el of children) {
+      if (el.tagName.toLowerCase() === 'circle') {
+        /* 새 마커 시작 : 흰 원판 circle 을 만나면 그룹 생성 */
+        group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.setAttribute('class', 'm2-marker');
+        const cat = MARKER_CATS[idx % MARKER_CATS.length];
+        idx++;
+        const t = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        t.textContent = catName[cat];
+        group.appendChild(t);
+        group.addEventListener('click', () => {
+          const pool = STAMPS.filter((s) => s.cat === cat);
+          openSim(pool[Math.floor(Math.random() * pool.length)]);
+        });
+        svg.insertBefore(group, el);
+        group.appendChild(el);
+      } else if (group) {
+        /* circle 에 딸린 mask / path 를 같은 그룹으로 이동 */
+        group.appendChild(el);
+      }
+    }
+  } catch (e) {
+    console.warn('map2.svg 로드 실패:', e);
   }
-  const wrap = $('#markers');
-  MARKERS.forEach((m) => {
-    const b = document.createElement('button');
-    b.className = 'marker' + (m.accent ? ' accent' : '');
-    b.dataset.cat = m.cat;
-    b.style.left = m.x + '%';
-    b.style.top = m.y + '%';
-    b.textContent = '✳';
-    b.title = { plants: '식물', birds: '새', insects: '곤충', amphibians: '양서류' }[m.cat];
-    b.addEventListener('click', () => {
-      const pool = STAMPS.filter((s) => s.cat === m.cat);
-      openSim(pool[Math.floor(Math.random() * pool.length)]);
-    });
-    wrap.appendChild(b);
-  });
 }
 
 /* ===================================================================
