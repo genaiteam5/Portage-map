@@ -278,7 +278,10 @@ const ASSETS = {
 };
 
 /* 숨겨진 그래픽(스탬프) 목록 — src 에 각 패턴 파일 경로를 넣으세요.
-   emoji 는 src 가 없거나 로드 실패 시 사용되는 대체 그래픽입니다. */
+   emoji 는 src 가 없거나 로드 실패 시 사용되는 대체 그래픽입니다.
+   곤충 · 양서류는 assets/ 안의 벡터 트레이스 SVG(투명 배경 위 짙은 실루엣,
+   fill="currentColor")를 그대로 스탬프 소스로 사용한다 — 세밀한 선각/해칭이
+   그대로 엠보싱 높이맵에 반영되어 훨씬 섬세한 프로타주 결과를 만든다. */
 const STAMPS = [
   /* [PLANT PATTERN FILES] */
   { id:'iris',      cat:'plants',     nameKo:'붓꽃',     nameEn:'Iris',                emoji:'🪻', shape:'oval',   src:null /* 'assets/stamps/plant-iris.png' */ },
@@ -286,12 +289,28 @@ const STAMPS = [
   /* [BIRD PATTERN FILES] */
   { id:'kingfisher',cat:'birds',      nameKo:'물총새',   nameEn:'Common Kingfisher',   emoji:'🐦', shape:'tri',    src:null /* 'assets/stamps/bird-kingfisher.png' */ },
   { id:'mandarin',  cat:'birds',      nameKo:'원앙',     nameEn:'Mandarin Duck',       emoji:'🦆', shape:'shield', src:null /* 'assets/stamps/bird-mandarin.png' */ },
-  /* [INSECT PATTERN FILES] */
-  { id:'butterfly', cat:'insects',    nameKo:'네발나비', nameEn:'Comma Butterfly',     emoji:'🦋', shape:'circle', src:null /* 'assets/stamps/insect-butterfly.png' */ },
-  { id:'dragonfly', cat:'insects',    nameKo:'된장잠자리',nameEn:'Wandering Glider',   emoji:'🦗', shape:'rect',   src:null /* 'assets/stamps/insect-dragonfly.png' — 잠자리 도판으로 교체 권장 */ },
-  /* [AMPHIBIAN PATTERN FILES] */
-  { id:'toadlet',   cat:'amphibians', nameKo:'맹꽁이',   nameEn:'Narrow-mouthed Toad', emoji:'🐸', shape:'circle', src:null /* 'assets/stamps/amp-maenggongi.png' */ },
-  { id:'toad',      cat:'amphibians', nameKo:'두꺼비',   nameEn:'Asian Toad',          emoji:'🐸', shape:'shield', src:null /* 'assets/stamps/amp-toad.png' */ },
+
+  /* [AMPHIBIAN — frog_01~04.svg] */
+  { id:'toadlet',        cat:'amphibians', nameKo:'맹꽁이',     nameEn:'Narrow-mouthed Toad', emoji:'🐸', shape:'circle', src:'assets/frog_01.svg' },
+  { id:'fire-bellied',   cat:'amphibians', nameKo:'무당개구리', nameEn:'Fire-bellied Toad',   emoji:'🐸', shape:'oval',   src:'assets/frog_02.svg' },
+  { id:'tree-frog',      cat:'amphibians', nameKo:'청개구리',   nameEn:'Tree Frog',           emoji:'🐸', shape:'shield', src:'assets/frog_03.svg' },
+  { id:'toad',           cat:'amphibians', nameKo:'두꺼비',     nameEn:'Asian Toad',          emoji:'🐸', shape:'shield', src:'assets/frog_04.svg' },
+
+  /* [INSECT — butterfly_01~06.svg] */
+  { id:'butterfly',      cat:'insects', nameKo:'네발나비',   nameEn:'Asian Comma Butterfly',   emoji:'🦋', shape:'circle', src:'assets/butterfly_01.svg' },
+  { id:'bangbujeon',     cat:'insects', nameKo:'방부전나비', nameEn:'Bangbujeon Butterfly',    emoji:'🦋', shape:'oval',   src:'assets/butterfly_02.svg' },
+  { id:'swallowtail',    cat:'insects', nameKo:'호랑나비',   nameEn:'Swallowtail Butterfly',   emoji:'🦋', shape:'circle', src:'assets/butterfly_03.svg' },
+  { id:'yellow-butterfly',cat:'insects', nameKo:'노랑나비',  nameEn:'Clouded Yellow Butterfly',emoji:'🦋', shape:'rect',   src:'assets/butterfly_04.svg' },
+  { id:'bucheon',        cat:'insects', nameKo:'부천나비',   nameEn:'Bucheon Butterfly',       emoji:'🦋', shape:'tri',    src:'assets/butterfly_05.svg' },
+  { id:'chimney-ringlet',cat:'insects', nameKo:'굴뚝나비',   nameEn:'Dark-branded Ringlet',    emoji:'🦋', shape:'shield', src:'assets/butterfly_06.svg' },
+
+  /* [INSECT — dragonfly_01~06.svg] */
+  { id:'wandering-glider', cat:'insects', nameKo:'된장잠자리',     nameEn:'Wandering Glider',           emoji:'🦟', shape:'rect',   src:'assets/dragonfly_01.svg' },
+  { id:'horse-dragonfly',  cat:'insects', nameKo:'말잠자리',       nameEn:'Lesser Emperor Dragonfly',   emoji:'🦟', shape:'circle', src:'assets/dragonfly_02.svg' },
+  { id:'asian-bluetail',   cat:'insects', nameKo:'아시아실잠자리', nameEn:'Asian Bluetail Damselfly',   emoji:'🦟', shape:'oval',   src:'assets/dragonfly_03.svg' },
+  { id:'scarlet-skimmer',  cat:'insects', nameKo:'고추잠자리',     nameEn:'Scarlet Skimmer',            emoji:'🦟', shape:'tri',    src:'assets/dragonfly_04.svg' },
+  { id:'olssuk-skimmer',   cat:'insects', nameKo:'올쑥밀잠자리',   nameEn:'Olssuk Skimmer',             emoji:'🦟', shape:'shield', src:'assets/dragonfly_05.svg' },
+  { id:'horse-dragonfly-2',cat:'insects', nameKo:'말잠자리',       nameEn:'Lesser Emperor Dragonfly',   emoji:'🦟', shape:'rect',   src:'assets/dragonfly_06.svg' },
 ];
 
 /* 마커 카테고리 — map2.svg 의 꽃 마커에 순서대로(순환) 배정된다 */
@@ -475,10 +494,23 @@ function makeEmojiStamp(stamp) {
   return c;
 }
 
+/* --- 사각 페더(가장자리 알파 감쇠) 마스크
+     이미지 비율과 무관하게 각 변에서 균일한 픽셀 폭으로 부드럽게 사라지므로,
+     원형 비네트와 달리 잠자리처럼 가늘고 긴 도판도 잘리지 않는다. --- */
+function buildFeatherMask(w, h, feather) {
+  const c = mkCanvas(w, h), x = c.getContext('2d');
+  x.fillStyle = '#fff';
+  x.fillRect(feather, feather, Math.max(0, w - feather * 2), Math.max(0, h - feather * 2));
+  const c2 = mkCanvas(w, h), x2 = c2.getContext('2d');
+  x2.filter = `blur(${feather * 0.6}px)`;
+  x2.drawImage(c, 0, 0);
+  return c2;
+}
+
 /* --- 완전히 찍힌 상태의 포일(embossed)을 미리 계산 --- */
 function buildEmbossed(stampSrc) {
   const w = sim.w, h = sim.h;
-  const box = Math.min(w, h) * 0.62;
+  const box = Math.min(w, h) * 0.68;
   const ar = stampSrc.width / stampSrc.height;
   const sw = ar >= 1 ? box : box * ar;
   const sh = ar >= 1 ? box / ar : box;
@@ -489,16 +521,13 @@ function buildEmbossed(stampSrc) {
   hx.fillStyle = '#808080';
   hx.fillRect(0, 0, w, h);
 
-  const fs = mkCanvas(Math.ceil(sw), Math.ceil(sh)), fx2 = fs.getContext('2d');
+  const fsw = Math.ceil(sw), fsh = Math.ceil(sh);
+  const fs = mkCanvas(fsw, fsh), fx2 = fs.getContext('2d');
   fx2.drawImage(stampSrc, 0, 0, sw, sh);
   fx2.globalCompositeOperation = 'destination-in';
-  const fg = fx2.createRadialGradient(sw / 2, sh / 2, Math.min(sw, sh) * 0.38, sw / 2, sh / 2, Math.min(sw, sh) * 0.52);
-  fg.addColorStop(0, 'rgba(0,0,0,1)');
-  fg.addColorStop(1, 'rgba(0,0,0,0)');
-  fx2.fillStyle = fg;
-  fx2.fillRect(0, 0, sw, sh);
+  fx2.drawImage(buildFeatherMask(fsw, fsh, Math.max(8, Math.min(sw, sh) * 0.045)), 0, 0);
 
-  hx.filter = 'grayscale(1) blur(2px)';
+  hx.filter = 'grayscale(1) blur(1.3px)';
   hx.drawImage(fs, sx, sy);
   hx.filter = 'none';
 
