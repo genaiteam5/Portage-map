@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>환경 점검 — Portage-map</title>
+<style>
+  body { font: 18px/1.5 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; margin: 0; padding: 24px; background: #fff; color: #111; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: #666; margin-bottom: 18px; }
+  .box { padding: 14px 18px; border-radius: 10px; margin: 0 0 18px; font-weight: 600; }
+  .good { background: #e6f4d7; color: #2d5a05; } .bad { background: #fde3e3; color: #8c1010; } .wait { background: #eee; color: #555; }
+  table { border-collapse: collapse; width: 100%; max-width: 760px; }
+  td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+  td:first-child { width: 58%; } .ok { color: #2d7a05; font-weight: 700; } .no { color: #c01818; font-weight: 700; }
+  code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; font-size: 15px; }
+</style>
+</head>
+<body>
+<h1>환경 점검</h1>
+<div class="sub">이 화면을 그대로 사진/캡처해서 보내주세요.</div>
+<div id="verdict" class="box wait">검사 중…</div>
+<table id="rows"></table>
+
+<script>
+(function () {
+  var rows = document.getElementById('rows'), fails = [], pending = 0;
+  function row(label, ok, detail, critical) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + label + '</td><td><span class="' + (ok ? 'ok' : 'no') + '">' + (ok ? 'OK' : '안 됨') + '</span> ' + (detail || '') + '</td>';
+    rows.appendChild(tr);
+    if (!ok && critical) fails.push(label);
+  }
+  function info(label, value) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + label + '</td><td>' + value + '</td>';
+    rows.appendChild(tr);
+  }
+  function supportsJS(src) { try { new Function(src); return true; } catch (e) { return false; } }
+  function cssOk(prop, val) { try { return !!(window.CSS && CSS.supports && CSS.supports(prop, val)); } catch (e) { return false; } }
+
+  var m = navigator.userAgent.match(/Chrome\/(\d+)/);
+  info('브라우저', (m ? 'Chrome ' + m[1] : '<b class="no">Chrome 아님 (' + navigator.userAgent.replace(/</g, '') + ')</b>'));
+  info('주소 방식', location.protocol + '//' + (location.host || '(파일)'));
+  info('화면 크기 / 배율', window.innerWidth + ' × ' + window.innerHeight + '  (배율 ' + window.devicePixelRatio + ')');
+
+  row('CSS 높이 단위 dvh (Map·시뮬레이션 높이)', cssOk('height', '1dvh'), '', true);
+  row('CSS inset 속성 (지도·캔버스 배치)', cssOk('inset', '0'), '', true);
+  row('CSS aspect-ratio (지도 비율)', cssOk('aspect-ratio', '1 / 1'), '', false);
+  row('CSS min() / max() 함수', cssOk('width', 'min(1px, 2px)') && cssOk('font-size', 'max(1px, 2px)'), '', true);
+  row('CSS grid', cssOk('display', 'grid'), '', true);
+  row('JS 최신 문법 ?. ??', supportsJS('var a = {}; return a?.b ?? 1;'), '', false);
+  row('PointerEvent (문지르기 입력)', typeof window.PointerEvent === 'function', '', true);
+  var ctx = document.createElement('canvas').getContext('2d');
+  row('캔버스 filter (엠보싱 블러)', !!(ctx && 'filter' in ctx), '', false);
+
+  // 실제로 파일을 읽을 수 있는지
+  function imgTest(label, src, critical) {
+    pending++;
+    var im = new Image();
+    im.onload = function () { row(label, true, '(' + im.naturalWidth + '×' + im.naturalHeight + ')', critical); done(); };
+    im.onerror = function () { row(label, false, src + ' 를 읽지 못함', critical); done(); };
+    im.src = src + '?t=' + Date.now();
+  }
+  imgTest('지도 배경 assets/map0.png', 'assets/map0.png', true);
+  imgTest('지도 일러스트 assets/map1.svg', 'assets/map1.svg', true);
+  imgTest('생물 도판 assets/frog_01.svg', 'assets/frog_01.svg', true);
+
+  // 도판을 캔버스에 그린 뒤 픽셀을 읽을 수 있는지 (시뮬레이션 핵심)
+  pending++;
+  (function () {
+    var im = new Image();
+    im.onload = function () {
+      try { var c = document.createElement('canvas'); c.width = c.height = 50; var x = c.getContext('2d'); x.drawImage(im, 0, 0, 50, 50); x.getImageData(0, 0, 50, 50); row('캔버스 픽셀 읽기 (시뮬레이션 핵심)', true, '', true); }
+      catch (e) { row('캔버스 픽셀 읽기 (시뮬레이션 핵심)', false, '(' + e.name + ') — 파일을 그냥 열었을 때 나는 문제', file_note()); }
+      done();
+    };
+    im.onerror = function () { row('캔버스 픽셀 읽기 (시뮬레이션 핵심)', false, '도판을 읽지 못함', true); done(); };
+    im.src = 'assets/frog_01.svg';
+  })();
+  function file_note() { return location.protocol === 'file:'; }
+
+  function done() {
+    if (--pending > 0) return;
+    var v = document.getElementById('verdict');
+    if (!fails.length) { v.className = 'box good'; v.textContent = '이 컴퓨터에서는 사이트가 정상 동작해야 합니다.'; }
+    else { v.className = 'box bad'; v.textContent = '문제 항목: ' + fails.join(' / '); }
+  }
+  if (!pending) done();
+})();
+</script>
+</body>
+</html>

@@ -15,6 +15,8 @@
   body { font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; }
 
   /* ---------- SPA pages ---------- */
+  /* Tailwind 의 inset-0 는 `inset: 0` 한 줄이라 Chrome 87 미만에서는 무시된다 → 4방향 값으로 보강 */
+  .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
   /* 높이는 JS 가 잰 px 값(--page-h)을 우선 쓰고, 그 앞 줄들은 구형 브라우저용 대체값이다.
      (100dvh 를 모르는 Chrome 에서는 선언이 통째로 무시되어 Map·시뮬레이션 높이가 0 이 되던 문제 방지) */
   .page       { min-height: calc(100vh - var(--header-h, 176px)); min-height: calc(100dvh - var(--header-h, 176px)); }
