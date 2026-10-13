@@ -15,8 +15,11 @@
   body { font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; }
 
   /* ---------- SPA pages ---------- */
-  .page       { min-height: calc(100dvh - var(--header-h)); }
-  .page-fixed { height:     calc(100dvh - var(--header-h)); overflow: hidden; }
+  /* 높이는 JS 가 잰 px 값(--page-h)을 우선 쓰고, 그 앞 줄들은 구형 브라우저용 대체값이다.
+     (100dvh 를 모르는 Chrome 에서는 선언이 통째로 무시되어 Map·시뮬레이션 높이가 0 이 되던 문제 방지) */
+  .page       { min-height: calc(100vh - var(--header-h, 176px)); min-height: calc(100dvh - var(--header-h, 176px)); }
+  .page-fixed { height: calc(100vh - var(--header-h, 176px)); height: calc(100dvh - var(--header-h, 176px));
+                height: var(--page-h, calc(100vh - var(--header-h, 176px))); min-height: 320px; overflow: hidden; }
 
   /* ---------- Navigation ---------- */
   .nav-link { transition: opacity .15s; }
@@ -982,9 +985,23 @@ function showToast(msg) {
 }
 
 function setHeaderVar() {
-  document.documentElement.style.setProperty('--header-h', $('#siteHeader').offsetHeight + 'px');
+  const hh = $('#siteHeader').offsetHeight;
+  document.documentElement.style.setProperty('--header-h', hh + 'px');
+  document.documentElement.style.setProperty('--page-h', Math.max(320, window.innerHeight - hh) + 'px');
   /* Services 페이지의 1u(=시안 1px) — 스크롤바를 뺀 실제 콘텐츠 폭 기준 */
   document.documentElement.style.setProperty('--svc-u', (Math.min(document.documentElement.clientWidth, 1920) / 1280) + 'px');
+}
+
+window.addEventListener('load', setHeaderVar);   /* 로고 이미지가 로드되며 헤더 높이가 바뀔 수 있다 */
+
+/* 문제 진단용: 주소 끝에 ?debug 를 붙여 열면 화면 위에 오류 메시지가 표시된다 */
+if (/[?&]debug\b/.test(location.search)) {
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#b00020;color:#fff;font:12px/1.4 monospace;padding:6px 10px;max-height:40vh;overflow:auto;white-space:pre-wrap';
+  bar.textContent = 'DEBUG  Chrome ' + ((navigator.userAgent.match(/Chrome\/(\d+)/) || [])[1] || '?') + '  dvh:' + (CSS.supports('height', '1dvh') ? 'ok' : 'NO') + '\n';
+  document.addEventListener('DOMContentLoaded', () => document.body.appendChild(bar));
+  window.addEventListener('error', (e) => { bar.textContent += '\n' + e.message + ' (' + (e.filename || '').split('/').pop() + ':' + e.lineno + ')'; });
+  window.addEventListener('unhandledrejection', (e) => { bar.textContent += '\n' + (e.reason && e.reason.message || e.reason); });
 }
 
 let resizeTimer = null;
